@@ -5,3 +5,6 @@
 /NvmlTests/obj
 /Demo/bin
 /Demo/obj
+obj
+bin
+*.user

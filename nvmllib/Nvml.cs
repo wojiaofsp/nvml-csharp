@@ -2,8 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Encodings;
-
+using nvmllib.vs2015;
 using NvmlDeviceArchitecture = System.UInt32;
 
 namespace Nvidia.Nvml
@@ -14,6 +13,9 @@ namespace Nvidia.Nvml
 
         [DllImport(NVML_SHARED_LIBRARY_STRING, EntryPoint = "nvmlInit")]
         internal static extern NvmlReturn NvmlInit();
+
+        [DllImport(NVML_SHARED_LIBRARY_STRING, EntryPoint = "nvmlDeviceGetUtilizationRates")]
+        internal static extern NvmlReturn nvmlDeviceGetUtilizationRates(IntPtr device, IntPtr pNvmlUtilization_t);
         [DllImport(NVML_SHARED_LIBRARY_STRING, EntryPoint = "nvmlInitWithFlags")]
         internal static extern NvmlReturn NvmlInitWithFlags(uint flags);
         [DllImport(NVML_SHARED_LIBRARY_STRING, EntryPoint = "nvmlInit_v2")]
@@ -225,17 +227,17 @@ namespace Nvidia.Nvml
             return state;
         }
 
-        public static (List<NvmlProcessInfo>, uint) NvmlDeviceGetComputeRunningProcesses(IntPtr device)
+        public static Tuple<List<NvmlProcessInfo>, uint> NvmlDeviceGetComputeRunningProcesses(IntPtr device)
         {
             NvmlReturn res;
-            int size = Marshal.SizeOf<NvmlProcessInfo>();
+            int size = Marshal.SizeOf(typeof(NvmlProcessInfo));
             // IntPtr buffer = Marshal.AllocHGlobal(size * 5);
             uint count = 0;
 
             res = Api.NvmlDeviceGetComputeRunningProcesses(device, out count, null);
             if (count <= 0)
             {
-                return (new List<NvmlProcessInfo>(), count);
+                return  new Tuple<List<NvmlProcessInfo>, uint>(new List<NvmlProcessInfo>(), count);
             }
 
             NvmlProcessInfo[] buffer = new NvmlProcessInfo[count];
@@ -245,7 +247,7 @@ namespace Nvidia.Nvml
                 throw new SystemException(res.ToString());
             }
 
-            return (new List<NvmlProcessInfo>(buffer), count);
+            return new Tuple<List<NvmlProcessInfo>, uint>(new List<NvmlProcessInfo>(buffer), count);
         }
 
         public static string NvmlSystemGetProcessName(uint pid, uint length)
@@ -377,6 +379,20 @@ namespace Nvidia.Nvml
             }
 
             return (uint)temperature;
+        }
+
+        public static nvmlUtilization_t nvmlDeviceGetUtilizationRates(IntPtr device)
+        {
+            var pModel = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(nvmlUtilization_t)));
+            var res = Api.nvmlDeviceGetUtilizationRates(device, pModel);
+            if (NvmlReturn.NVML_SUCCESS != res)
+            {
+                throw new SystemException(res.ToString());
+            }
+
+            var m =(nvmlUtilization_t) Marshal.PtrToStructure(pModel, typeof(nvmlUtilization_t));
+            Marshal.FreeHGlobal(pModel);
+            return m;
         }
     }
 }
